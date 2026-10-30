@@ -1,0 +1,79 @@
+site_name: Docker + Laravel API lab
+site_description: Learn Docker by hosting and consuming Laravel APIs - REST, GraphQL, gRPC, SOAP and MQTT.
+
+nav:
+  - Home: index.md
+  - Lessons:
+      - 1. One container: lessons/01-one-container.md
+      - 2. The full stack: lessons/02-full-stack.md
+      - 3. Host an API: lessons/03-host-an-api.md
+      - 4. Consume an API: lessons/04-consume-an-api.md
+      - 5. Volumes, rebuilds, images: lessons/05-volumes-and-images.md
+      - 6. This website: lessons/06-this-website.md
+  - Other API styles:
+      - 7. GraphQL: api-styles/07-graphql.md
+      - 8. gRPC: api-styles/08-grpc.md
+      - 9. SOAP: api-styles/09-soap.md
+      - 10. MQTT: api-styles/10-mqtt.md
+      - Comparing them: api-styles/comparison.md
+  - Scaling out:
+      - 11. Kubernetes and load balancing: lessons/11-kubernetes.md
+      - 12. Docker Swarm: lessons/12-swarm.md
+  - Documenting APIs:
+      - 13. API documentation (OpenAPI): lessons/13-api-documentation.md
+  - Exercises: exercises.md
+  - Reference:
+      - API endpoints: reference/api.md
+      - compose.yaml: reference/compose.md
+      - Source code: reference/source.md
+      - Command cheat sheet: reference/cheatsheet.md
+      - Troubleshooting: reference/troubleshooting.md
+
+theme:
+  name: material
+  # Template overrides: the KU Leuven and DistriNet logos in the header and footer.
+  custom_dir: overrides
+  # KU Leuven house style: colours in docs/stylesheets/kuleuven.css, fonts as on kuleuven.be.
+  font:
+    text: Source Sans Pro
+    code: Source Code Pro
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle: { icon: material/weather-night, name: Dark mode }
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle: { icon: material/weather-sunny, name: Light mode }
+  features:
+    - navigation.sections
+    - navigation.footer
+    - content.code.copy
+    - search.highlight
+
+extra_css:
+  - stylesheets/kuleuven.css
+
+# Fills in the lab's real address: pages write LAB_ADDR / LAB_HOST, see the script.
+extra_javascript:
+  - javascripts/lab-address.js
+
+copyright: KU Leuven
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed: { alternate_style: true }
+  - pymdownx.superfences
+  - tables
+  - toc: { permalink: true }
+  # `--8<-- "path"` embeds a real file from the lab, so the docs always show the current code.
+  # Paths are relative to /lab, the directory mkdocs runs in (see course/Dockerfile).
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true

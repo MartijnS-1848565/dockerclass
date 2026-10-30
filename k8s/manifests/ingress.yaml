@@ -1,0 +1,18 @@
+# An Ingress: the cluster's front door. Traefik (built into k3s) reads this and forwards
+# HTTP requests from outside to the whoami Service, spreading them over the pods.
+# No "host:" rule, so it answers for any host name (port 8090 on the Docker host, the lab's proxy, ...).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: whoami
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: whoami
+                port:
+                  number: 80

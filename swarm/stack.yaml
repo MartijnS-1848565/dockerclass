@@ -1,0 +1,35 @@
+# The whole Swarm deployment. It's a normal compose file, plus a `deploy:` section that
+# only Swarm reads. Deployed with: docker stack deploy -c stack.yaml whoami
+services:
+  whoami:
+    # Loaded into every node by `docker compose run --rm swarm up` (there's no registry in this lab).
+    image: whoami-lab:1.0
+    environment:
+      # Swarm "templates": filled in per container, like the Kubernetes Downward API.
+      NODE_NAME: "{{.Node.Hostname}}"
+      CONTAINER_NAME: "{{.Task.Name}}"
+      APP_VERSION: "v1"
+    ports:
+      # Published through the "routing mesh": port 80 on EVERY node forwards to the
+      # service, even on a node that runs none of its containers.
+      - "80:8080"
+    healthcheck:
+      # Only containers that pass this check get traffic.
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://localhost:8080/?format=text') ? 0 : 1);"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    deploy:
+      replicas: 6
+      # Swarm spreads replicas over the nodes by itself. This only caps it at 3 per node.
+      placement:
+        max_replicas_per_node: 3
+      # Rolling updates: replace 2 containers at a time, start the new ones before stopping the old.
+      update_config:
+        parallelism: 2
+        delay: 2s
+        order: start-first
+      resources:
+        limits:
+          memory: 64M
+  

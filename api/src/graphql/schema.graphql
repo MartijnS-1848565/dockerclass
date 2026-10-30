@@ -1,0 +1,43 @@
+# The GraphQL schema: the contract between this API and its clients.
+# Lighthouse reads this file and serves it at POST /graphql.
+# The @directives tell Lighthouse how to resolve each field with Eloquent, so there's no controller.
+# "Strings" right above a type or field are descriptions: clients can read them (try GraphiQL's docs panel).
+
+"A date-time string, e.g. 2026-10-21 13:11:38 (UTC)."
+scalar DateTime @scalar(class: "Nuwave\\Lighthouse\\Schema\\Types\\Scalars\\DateTime")
+
+type Book {
+    id: ID!
+    title: String!
+    author: String!
+    published_year: Int
+    created_at: DateTime
+}
+
+type Query {
+    "All books, optionally filtered by title. Uses the search() scope on the Book model."
+    books(search: String @scope(name: "search")): [Book!]! @all
+
+    "One book by id, or null if it doesn't exist."
+    book(id: ID! @eq): Book @find
+}
+
+# Mutations change data, so they require the X-API-KEY header (see App\GraphQL\Directives\RequireApiKeyDirective).
+# GraphQL has ONE url for everything, so we can't protect "POST /books" like in REST:
+# the check moves from the route into the schema, per field.
+type Mutation {
+    createBook(
+        title: String! @rules(apply: ["max:255"])
+        author: String! @rules(apply: ["max:255"])
+        published_year: Int @rules(apply: ["integer", "between:0,2100"])
+    ): Book! @requireApiKey @create
+
+    updateBook(
+        id: ID!
+        title: String @rules(apply: ["max:255"])
+        author: String @rules(apply: ["max:255"])
+        published_year: Int @rules(apply: ["integer", "between:0,2100"])
+    ): Book @requireApiKey @update
+
+    deleteBook(id: ID! @whereKey): Book @requireApiKey @delete
+}

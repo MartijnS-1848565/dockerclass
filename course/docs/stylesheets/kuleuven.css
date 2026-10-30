@@ -1,0 +1,175 @@
+/* KU Leuven house style for the course site, on top of MkDocs Material.
+   Colours and fonts as used by kuleuven.be: blue #004070, navy #00194b, light blue #d4e7f3,
+   Source Sans Pro for text and Source Serif Pro for headings.
+   The text font is set in mkdocs.yml (theme.font); the heading font is loaded here. */
+@import url("https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600&display=swap");
+
+:root {
+  --kul-blue: #004070;
+  --kul-navy: #00194b;
+  --kul-teal: #147fa1;
+  --kul-mid-blue: #66a0cc;
+  --kul-light-blue: #d4e7f3;
+  --kul-pale-blue: #eef5fa;
+}
+
+/* Light mode */
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: var(--kul-blue);
+  --md-primary-fg-color--light: var(--kul-teal);
+  --md-primary-fg-color--dark: var(--kul-navy);
+  --md-primary-bg-color: #fff;
+  --md-accent-fg-color: var(--kul-teal);
+  --md-accent-fg-color--transparent: rgb(20 127 161 / 0.1);
+  --md-typeset-a-color: var(--kul-teal);
+  --md-default-fg-color: #333;
+  --md-code-bg-color: var(--kul-pale-blue);
+  --md-footer-bg-color: var(--kul-navy);
+  --md-footer-bg-color--dark: #001133;
+}
+
+/* Dark mode: the same blues for the bars, lighter blues for text on a dark background */
+[data-md-color-scheme="slate"] {
+  --md-hue: 212;
+  --md-primary-fg-color: var(--kul-blue);
+  --md-primary-fg-color--light: var(--kul-mid-blue);
+  --md-primary-fg-color--dark: var(--kul-navy);
+  --md-primary-bg-color: #fff;
+  --md-accent-fg-color: #85b3d6;
+  --md-accent-fg-color--transparent: rgb(133 179 214 / 0.1);
+  --md-typeset-a-color: #85b3d6;
+  --md-footer-bg-color: var(--kul-navy);
+  --md-footer-bg-color--dark: #001133;
+}
+
+/* Headings: serif, regular weight, KU Leuven blue */
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3,
+.md-typeset h4 {
+  font-family: "Source Serif Pro", Georgia, serif;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+[data-md-color-scheme="default"] .md-typeset h1,
+[data-md-color-scheme="default"] .md-typeset h2,
+[data-md-color-scheme="default"] .md-typeset h3 {
+  color: var(--kul-blue);
+}
+
+[data-md-color-scheme="slate"] .md-typeset h1,
+[data-md-color-scheme="slate"] .md-typeset h2,
+[data-md-color-scheme="slate"] .md-typeset h3 {
+  color: var(--kul-light-blue);
+}
+
+.md-typeset h2 {
+  border-bottom: 1px solid var(--kul-light-blue);
+  padding-bottom: 0.2em;
+}
+
+[data-md-color-scheme="slate"] .md-typeset h2 {
+  border-bottom-color: rgb(212 231 243 / 0.2);
+}
+
+.md-header__topic:first-child {
+  font-family: "Source Serif Pro", Georgia, serif;
+  font-weight: 400;
+}
+
+/* Table headers in light blue, as on kuleuven.be */
+[data-md-color-scheme="default"] .md-typeset table:not([class]) th {
+  background-color: var(--kul-light-blue);
+  color: var(--kul-navy);
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) th {
+  background-color: rgb(0 64 112 / 0.6);
+}
+
+/* Section titles in the left navigation */
+[data-md-color-scheme="default"] .md-nav--primary .md-nav__item--section > .md-nav__link {
+  color: var(--kul-blue);
+}
+
+/* Logos: KU Leuven + DistriNet, in the header, the mobile navigation drawer and the footer
+   (templates in course/overrides/partials/). */
+.kul-logos {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.md-header__button.md-logo {
+  margin-right: 0.6rem;
+}
+
+.md-header__button.md-logo .kul-logo {
+  width: auto;
+  height: 1.8rem;
+}
+
+.md-header__button.md-logo .kul-logo--distrinet {
+  height: 1.2rem;
+}
+
+/* Below 1220px Material hides the header logo and shows the menu button instead.
+   Keep the logos in the header anyway; on phones only KU Leuven fits next to the title. */
+@media screen and (max-width: 76.234375em) {
+  .md-header__button.md-logo {
+    display: block;
+  }
+
+  /* menu button first, then the logos */
+  .md-header__inner > label[for="__drawer"] {
+    order: -1;
+  }
+
+  .md-header__button.md-logo .kul-logo {
+    height: 1.5rem;
+  }
+
+  .md-header__button.md-logo .kul-logo--distrinet {
+    height: 1rem;
+  }
+}
+
+@media screen and (max-width: 44.984375em) {
+  .md-header__button.md-logo .kul-logo--distrinet {
+    display: none;
+  }
+}
+
+/* The navigation drawer (below 1220px) is only ~240px wide. The extra .md-nav__title
+   is needed to beat Material's own rule for images in the drawer title. */
+.md-nav__title .md-nav__button.md-logo .kul-logos {
+  gap: 0.6rem;
+}
+
+.md-nav__title .md-nav__button.md-logo .kul-logo {
+  width: auto;
+  max-width: none;
+  height: 1.5rem;
+}
+
+.md-nav__title .md-nav__button.md-logo .kul-logo--distrinet {
+  height: 1rem;
+}
+
+.kul-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.8rem 1.6rem;
+}
+
+.kul-footer .kul-logo {
+  display: block;
+  height: 2.4rem;
+  width: auto;
+}
+
+.kul-footer .kul-logo--distrinet {
+  height: 1.6rem;
+}

@@ -1,0 +1,12 @@
+# A Service: one stable name and IP ("whoami:80") in front of all pods with label app=whoami.
+# Pods come and go (and get new IPs); the Service always points at the ones that are ready.
+apiVersion: v1
+kind: Service
+metadata:
+  name: whoami
+spec:
+  selector:
+    app: whoami
+  ports:
+    - port: 80          # the Service's port
+      targetPort: 8080  # the container's port

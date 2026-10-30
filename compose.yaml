@@ -1,0 +1,275 @@
+# Docker + Laravel API lab
+#
+#   browser ──► proxy (nginx, :8080) ──┬──► course (this lab's course website)
+#                                      ├──► client (Laravel website) ──HTTP──► api (Laravel REST API) ──► db (MariaDB)
+#                                      ├──► api                              api ──publishes events──► mqtt (broker)
+#                                      ├──► mqtt (WebSockets, for browsers)              listener ◄──┘
+#                                      ├──► grpc (gRPC service) ───────────────────────────────────────────► db
+#                                      ├──► flask (documented REST API, Swagger UI) ───────────────────────► db
+#                                      └──► adminer (DB web UI) ───────────────────────────────────────────► db
+#
+# Values like ${API_KEY} come from the .env file next to this one.
+# Start everything:   docker compose up -d --build
+# Stop everything:    docker compose down        (add -v to also delete the database volume)
+
+services:
+  proxy:
+    image: nginx:1.27-alpine
+    ports:
+      # "host:container" - the ONLY ports published to your machine (both go to nginx's port 80).
+      # Every other service is reachable only from inside the Docker network.
+      - "${PROXY_PORT:-8080}:80"
+      # A second port, from PROXY_PORT_2 in .env. Not set? Then this line repeats the first one,
+      # and Compose merges the two: you get just PROXY_PORT.
+      - "${PROXY_PORT_2:-${PROXY_PORT:-8080}}:80"
+    volumes:
+      # Bind mount: a folder from your machine, read-only (:ro) inside the container.
+      - ./proxy/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - course
+      - client
+      - api
+      - grpc
+      - grpc-ws
+      - grpc-tunnel
+      - flask
+      - mqtt
+      - adminer
+    networks:
+      - proxyoverlay
+      - frontend
+
+  course:
+    build:
+      # The docs embed files from all over the lab, so the build context is the whole
+      # lab folder (minus what .dockerignore excludes), not just ./course.
+      context: .
+      dockerfile: course/Dockerfile
+    networks:
+      - frontend
+
+  client:
+    build: ./client
+    environment:
+      # "api" is the service name below. Docker's built-in DNS turns it into the container's IP.
+      BOOK_API_URL: http://api:8000/api
+      BOOK_API_KEY: ${API_KEY}
+      APP_ENV: local
+      APP_DEBUG: "true"
+      # The client has no database, so keep sessions and cache on disk.
+      SESSION_DRIVER: file
+      CACHE_STORE: file
+      MQTT_HOST: mqtt
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - frontend
+
+  # Same image as client, different command: instead of serving web pages, it runs
+  # `php artisan books:listen` and prints every MQTT book event it receives.
+  #   docker compose logs -f listener
+  listener:
+    build: ./client
+    entrypoint: ["php", "artisan", "books:listen"]
+    # init: a tiny init process becomes PID 1 and forwards stop signals to PHP,
+    # so `docker compose stop listener` is instant instead of waiting 10 s.
+    init: true
+    # If the broker restarts, the connection drops and the command exits: start it again.
+    restart: unless-stopped
+    environment:
+      MQTT_HOST: mqtt
+      APP_ENV: local
+    depends_on:
+      mqtt:
+        condition: service_healthy
+    networks:
+      - frontend
+
+  api:
+    build: ./api
+    environment:
+      API_KEY: ${API_KEY}
+      APP_ENV: local
+      APP_DEBUG: "true"
+      DB_CONNECTION: mariadb
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      MQTT_HOST: mqtt
+    depends_on:
+      db:
+        # Wait until the database actually accepts connections, not just until the container started.
+        condition: service_healthy
+      mqtt:
+        condition: service_healthy
+    healthcheck:
+      # Laravel ships a /up health route. The image has no curl, so we use PHP itself.
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://localhost:8000/up') ? 0 : 1);"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    networks:
+      - frontend
+      - backend
+
+  grpc:
+    build: ./grpc
+    environment:
+      # A shortcut for the lab: it reads the same books table as the api.
+      # In a real system each service would own its own data.
+      DB_HOST: db
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      api:
+        condition: service_healthy   # the api's migrations create the books table
+    networks:
+      - frontend
+      - backend
+
+  # gRPC over WebSockets, for the browser (the client's gRPC page): the same image as grpc,
+  # running the bridge instead of the server. Browser -> /grpc-ws on the proxy -> here -> grpc.
+  grpc-ws:
+    build: ./grpc
+    command: ["python", "-u", "ws_bridge.py"]
+    environment:
+      GRPC_TARGET: grpc:50051
+    depends_on:
+      - grpc
+    networks:
+      - frontend
+
+  # Genuine gRPC wrapped in WebSockets, for tools on other machines (Postman, grpcurl) when
+  # the lab is behind a proxy that breaks gRPC, like Cloudflare Tunnel. websockify unwraps the
+  # WebSocket and passes the raw gRPC bytes on to grpc, untouched. The client needs a wrapper:
+  #   websocat -E --binary tcp-l:127.0.0.1:9090 ws://<proxy address>/grpc-tunnel
+  grpc-tunnel:
+    build: ./grpc
+    command: ["websockify", "0.0.0.0:8766", "grpc:50051"]
+    depends_on:
+      - grpc
+    networks:
+      - frontend
+
+  # The same books as a REST API in Flask, documented with OpenAPI (Swagger) by Flasgger.
+  # Docs and "try it out": /flask/apidocs/ on the proxy
+  flask:
+    build: ./flask
+    environment:
+      API_KEY: ${API_KEY}
+      DB_HOST: db
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      api:
+        condition: service_healthy   # the api's migrations create the books table
+    networks:
+      - frontend
+      - backend
+
+  # A command-line gRPC client, the "curl for gRPC". It has a profile, so
+  # `docker compose up` skips it; you run it on demand:
+  #   docker compose run --rm grpcurl -plaintext grpc:50051 list
+  grpcurl:
+    image: fullstorydev/grpcurl:v1.9.1
+    profiles: ["tools"]
+    networks:
+      - frontend
+
+  # The MQTT broker. Port 1883 = MQTT for services, 9001 = MQTT over WebSockets for browsers.
+  mqtt:
+    image: eclipse-mosquitto:2.0.18
+    volumes:
+      - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mqttdata:/mosquitto/data
+    healthcheck:
+      # Healthy once the broker answers: read one message from its built-in $SYS status topics.
+      # ($$ because compose would otherwise treat $SYS as a variable.)
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/broker/uptime", "-C", "1", "-W", "3"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - frontend
+
+  # The Kubernetes toolbox (docker CLI + k3d + kubectl). Not started by `up`; run it on demand:
+  #   docker compose run --rm k8s up        create a 3-node cluster and deploy the whoami page
+  #   docker compose run --rm k8s test      see the load balancing across pods and nodes
+  #   docker compose run --rm k8s down      delete the cluster
+  k8s:
+    build: ./k8s/tools
+    profiles: ["k8s"]
+    volumes:
+      # Access to the host's Docker: k3d creates the cluster's node containers through it.
+      # Whoever can use this socket controls Docker on the host, so only mount it into
+      # containers you trust.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./k8s:/k8s:ro
+      - ./whoami:/whoami:ro
+    # Being on frontend means `docker compose run` creates the lab-frontend network if it
+    # doesn't exist yet. The script then attaches the cluster's load balancer to it.
+    networks:
+      - frontend
+
+  # The Swarm toolbox: just the official docker CLI image plus a script. Run on demand:
+  #   docker compose run --rm swarm up        start a 3-node swarm and deploy the whoami page
+  #   docker compose run --rm swarm test      see the load balancing across containers and nodes
+  #   docker compose run --rm swarm down      delete the swarm
+  swarm:
+    image: docker:27.3-cli
+    profiles: ["swarm"]
+    entrypoint: ["sh", "/swarm/lab-swarm.sh"]
+    command: ["help"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock   # see the k8s service: same warning applies
+      - ./swarm:/swarm:ro
+      - ./whoami:/whoami:ro
+    networks:
+      - frontend   # see the k8s service: the script attaches the swarm nodes to it
+
+  db:
+    image: mariadb:11.4
+    environment:
+      MARIADB_DATABASE: ${DB_DATABASE}
+      MARIADB_USER: ${DB_USERNAME}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      # Named volume: Docker manages where the data lives. It survives
+      # `docker compose down`, and only `docker compose down -v` removes it.
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - backend
+
+  adminer:
+    image: adminer:4.8.1-standalone
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    networks:
+      - frontend
+      - backend
+
+# Two networks: the client sits only on "frontend", so it physically cannot reach the
+# database; it HAS to go through the API. Only api, grpc, flask and adminer sit on both networks.
+networks:
+  frontend:
+    # A fixed name (instead of "<folder>_frontend"), so the k8s and swarm scripts can attach
+    # their containers to it and the proxy can reach them by name.
+    name: lab-frontend
+  backend:
+  proxyoverlay:
+    external: true
+volumes:
+  dbdata:
+  mqttdata:

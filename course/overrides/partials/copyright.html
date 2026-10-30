@@ -1,0 +1,27 @@
+{#-
+  Replaces Material's copyright partial: the KU Leuven and DistriNet logos (linking to
+  their websites) next to the copyright line in the footer.
+-#}
+<div class="md-copyright kul-footer">
+  <div class="kul-logos">
+    <a href="https://www.kuleuven.be" target="_blank" rel="noopener">
+      <img src="{{ 'assets/images/kuleuven.svg' | url }}" alt="KU Leuven" class="kul-logo">
+    </a>
+    <a href="https://distrinet.cs.kuleuven.be" target="_blank" rel="noopener">
+      <img src="{{ 'assets/images/distrinet-white.svg' | url }}" alt="DistriNet" class="kul-logo kul-logo--distrinet">
+    </a>
+  </div>
+  <div>
+    {% if config.copyright %}
+      <div class="md-copyright__highlight">
+        {{ config.copyright }}
+      </div>
+    {% endif %}
+    {% if not config.extra.generator == false %}
+      Made with
+      <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+        Material for MkDocs
+      </a>
+    {% endif %}
+  </div>
+</div>

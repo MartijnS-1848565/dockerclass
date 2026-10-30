@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The WSDL (Web Services Description Language) is the SOAP contract: it lists every
+  operation, its input and output messages, the XML types they contain, and the URL
+  where the service lives. Clients read this file and know how to call the service.
+
+  Read it bottom-up: service (where) → binding (how: SOAP over HTTP) →
+  portType (which operations) → messages → types (what the XML looks like).
+-->
+<definitions name="BookService"
+             targetNamespace="http://lab.localhost/books"
+             xmlns:tns="http://lab.localhost/books"
+             xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+             xmlns="http://schemas.xmlsoap.org/wsdl/">
+
+    <!-- TYPES: an XML Schema describing every element that can appear in a message. -->
+    <types>
+        <xsd:schema targetNamespace="http://lab.localhost/books" elementFormDefault="qualified">
+            <xsd:complexType name="Book">
+                <xsd:sequence>
+                    <xsd:element name="id" type="xsd:int"/>
+                    <xsd:element name="title" type="xsd:string"/>
+                    <xsd:element name="author" type="xsd:string"/>
+                    <xsd:element name="published_year" type="xsd:int" nillable="true"/>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <xsd:element name="GetBooks">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="search" type="xsd:string" minOccurs="0"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+            <xsd:element name="GetBooksResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="book" type="tns:Book" minOccurs="0" maxOccurs="unbounded"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="GetBook">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="id" type="xsd:int"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+            <xsd:element name="GetBookResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="book" type="tns:Book"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="AddBook">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="apiKey" type="xsd:string"/>
+                        <xsd:element name="title" type="xsd:string"/>
+                        <xsd:element name="author" type="xsd:string"/>
+                        <xsd:element name="published_year" type="xsd:int" minOccurs="0"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+            <xsd:element name="AddBookResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="book" type="tns:Book"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+        </xsd:schema>
+    </types>
+
+    <!-- MESSAGES: each request and response wraps exactly one element from <types>. -->
+    <message name="GetBooksRequest"><part name="parameters" element="tns:GetBooks"/></message>
+    <message name="GetBooksResponse"><part name="parameters" element="tns:GetBooksResponse"/></message>
+    <message name="GetBookRequest"><part name="parameters" element="tns:GetBook"/></message>
+    <message name="GetBookResponse"><part name="parameters" element="tns:GetBookResponse"/></message>
+    <message name="AddBookRequest"><part name="parameters" element="tns:AddBook"/></message>
+    <message name="AddBookResponse"><part name="parameters" element="tns:AddBookResponse"/></message>
+
+    <!-- PORT TYPE: the operations, like the methods of an interface. -->
+    <portType name="BookPortType">
+        <operation name="GetBooks">
+            <input message="tns:GetBooksRequest"/>
+            <output message="tns:GetBooksResponse"/>
+        </operation>
+        <operation name="GetBook">
+            <input message="tns:GetBookRequest"/>
+            <output message="tns:GetBookResponse"/>
+        </operation>
+        <operation name="AddBook">
+            <input message="tns:AddBookRequest"/>
+            <output message="tns:AddBookResponse"/>
+        </operation>
+    </portType>
+
+    <!-- BINDING: how the operations travel: SOAP envelopes over HTTP, "document/literal" style. -->
+    <binding name="BookBinding" type="tns:BookPortType">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+        <operation name="GetBooks">
+            <soap:operation soapAction="http://lab.localhost/books/GetBooks"/>
+            <input><soap:body use="literal"/></input>
+            <output><soap:body use="literal"/></output>
+        </operation>
+        <operation name="GetBook">
+            <soap:operation soapAction="http://lab.localhost/books/GetBook"/>
+            <input><soap:body use="literal"/></input>
+            <output><soap:body use="literal"/></output>
+        </operation>
+        <operation name="AddBook">
+            <soap:operation soapAction="http://lab.localhost/books/AddBook"/>
+            <input><soap:body use="literal"/></input>
+            <output><soap:body use="literal"/></output>
+        </operation>
+    </binding>
+
+    <!-- SERVICE: where it lives. __LOCATION__ is replaced with the real URL when the WSDL is served. -->
+    <service name="BookService">
+        <port name="BookPort" binding="tns:BookBinding">
+            <soap:address location="__LOCATION__"/>
+        </port>
+    </service>
+</definitions>

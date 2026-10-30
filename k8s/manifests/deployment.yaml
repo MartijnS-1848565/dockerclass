@@ -1,0 +1,62 @@
+# A Deployment: "keep 6 copies of this pod running, and replace any that die."
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: whoami
+  labels:
+    app: whoami
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: whoami        # the pods this Deployment manages
+  template:              # the blueprint for each pod
+    metadata:
+      labels:
+        app: whoami
+    spec:
+      # Spread the pods evenly over the nodes (at most 1 more on one node than on another),
+      # so the load balancing across nodes is easy to see.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: whoami
+      containers:
+        - name: whoami
+          # Built and loaded into the cluster by `docker compose run --rm k8s up`.
+          # The nodes can't pull it from Docker Hub, so never try to.
+          image: whoami-lab:1.0
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+          env:
+            # The "Downward API": Kubernetes fills these in for each pod.
+            - name: CONTAINER_NAME   # the pod's name
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: CONTAINER_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: APP_VERSION
+              value: "v1"
+          # Only send traffic to a pod once this check succeeds.
+          readinessProbe:
+            httpGet:
+              path: /?format=text
+              port: 8080
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 64Mi

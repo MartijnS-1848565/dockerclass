@@ -1,0 +1,4 @@
+# Files Docker leaves out of the build context when building from this folder
+# (the course image). Secrets don't belong in an image: anyone with the image can read them.
+.env
+.git

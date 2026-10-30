@@ -1,0 +1,39 @@
+// The gRPC contract, written in Protocol Buffers ("protobuf").
+// Server and client both generate code from this file, so they always agree on
+// the method names and the exact shape of every message.
+syntax = "proto3";
+
+package books.v1;
+
+service BookService {
+  // One request, one response (like GET /api/books).
+  rpc ListBooks (ListBooksRequest) returns (ListBooksResponse);
+
+  // Fails with status NOT_FOUND if the id doesn't exist.
+  rpc GetBook (GetBookRequest) returns (Book);
+
+  // Server streaming: one request, then the server sends books one at a time
+  // over the same connection. Plain REST can't do this.
+  rpc StreamBooks (ListBooksRequest) returns (stream Book);
+}
+
+// Each field has a number. On the wire, protobuf sends the number instead of the
+// name, which keeps messages small. Never reuse or renumber a field once clients use it.
+message Book {
+  int64 id = 1;
+  string title = 2;
+  string author = 3;
+  int32 published_year = 4;  // 0 when unknown: proto3 has no null for numbers
+}
+
+message ListBooksRequest {
+  string search = 1;  // optional title filter; "" = all books
+}
+
+message ListBooksResponse {
+  repeated Book books = 1;  // "repeated" = a list
+}
+
+message GetBookRequest {
+  int64 id = 1;
+}

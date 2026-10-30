@@ -1,0 +1,15 @@
+# A Kubernetes cluster made of Docker containers, created by k3d (https://k3d.io).
+# Every "node" below is a container running k3s, a small but complete Kubernetes.
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: lab
+servers: 1   # control plane: runs the Kubernetes API and the scheduler (and can run pods too)
+agents: 2    # worker nodes: only run pods
+image: rancher/k3s:v1.31.5-k3s1
+ports:
+  # k3d puts a small load balancer container in front of the nodes. Host port 8090 goes to
+  # port 80 on the nodes, where k3s' built-in ingress controller (Traefik) listens.
+  - port: 8090:80
+    nodeFilters:
+      - loadbalancer
